@@ -294,7 +294,7 @@ int main() {
     int result = 1;
     int idx;
     double diff;
-    for (idx = 0; idx < Cdatasize; idx ++)
+    for (idx = 0; idx < (*Arows)*(*Bcols); idx ++)
     {
         diff = C[idx] - C_cpu[idx];
         if (diff < 0) diff *= -1;
@@ -302,6 +302,7 @@ int main() {
         {
             result = 0;
             printf("Breaking, index = %d\n", idx);
+            printf("Total Data size is = %d\n", (*Arows)*(*Bcols));
             printf("OCL: %f\n", C[idx]);
             printf("CPU: %f\n", C_cpu[idx]);
 
