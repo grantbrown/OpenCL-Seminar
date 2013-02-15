@@ -26,7 +26,7 @@ char* readSource(char* kernelPath)
     char* source;
     long int size;
     printf("Kernel file is: %s\n", kernelPath);
-    pf = fopen(kernelPath, "rb");
+    fp = fopen(kernelPath, "rb");
     if (!fp)
     {
         printf("Couldn't Open Kernel File\n");
@@ -44,9 +44,11 @@ char* readSource(char* kernelPath)
         printf("Error getting file position\n");
         exit(-1);
     }
+
     rewind(fp);
-    source = (char *) malloc(suze + 1);
-    int 1;
+
+    source = (char *) malloc(size + 1);
+    int i;
     for (i = 0; i< size + 1; i++)
     {
         source[i] = '\0';
@@ -65,11 +67,33 @@ char* readSource(char* kernelPath)
 float* readDataFile(char fn[], int *mnum, int *nnum ){
       /* first row of input file contains two ints: num rows and num cols */
       /* rest of input file is data vals in row major order */
+      int status;
+      int size;
       float *data;
       int m,n,i;
       FILE* fp;
       fp=fopen(fn,"r");
+      if (!fp)
+      {
+          printf("Error opening file\n");
+      }
+      status = fseek(fp, 0, SEEK_END);
+      if (status != 0)
+      {
+          printf("Error seeking end of file\n");
+          exit(-1);
+      }
+      size = ftell(fp);
+      if (size<0)
+      {
+          printf("Error getting file position\n");
+          exit(-1);
+      }
+
+      rewind(fp);
+
       fscanf(fp,"%d %d",&m, &n);
+      printf("Rows: %d, Columns:  %d\n", m, n);
       data=malloc(sizeof(float)*m*n); //
       for (i=0;i<m*n;i++)
       fscanf(fp,"%f",&data[i]);
@@ -98,17 +122,18 @@ void simpleMultiplyCPU( float *C, int widthA, int heightA, int widthB,
     }
 }
 
-// OpenCL kernel to perform an element-wise addition 
-const char* programSource = readSource("./matmult.kernel");
+// OpenCL kernel to perform an element-wise addition
 
 int main() {
     // This code executes on the OpenCL host
     
+    const char* programSource = readSource("./matmult.kernel");
     // Host data
-    int* Arows;
-    int* Acols;
-    int* Brows;
-    int* Bcols;
+    int* Arows = (int *) malloc(sizeof(int));
+    int* Acols = (int *) malloc(sizeof(int));
+    int* Brows = (int *) malloc(sizeof(int));
+    int* Bcols = (int *) malloc(sizeof(int));
+;
 
     float* A = readDataFile("./MatrixA.txt", Arows, Acols);  // Input array
     float* B = readDataFile("./MatrixB.txt", Brows, Bcols);  // Input array
@@ -116,6 +141,7 @@ int main() {
     int Adatasize = sizeof(float)*(*Arows)*(*Acols);
     int Bdatasize = sizeof(float)*(*Brows)*(*Bcols);
     int Cdatasize = sizeof(float)*(*Arows)*(*Bcols);
+
 
     float* C = (float*) malloc(Cdatasize);  // Output array
     float* C_cpu = (float*) malloc(Cdatasize);  // Output array
@@ -250,29 +276,36 @@ int main() {
     globalWorkSize[1] = *Arows;
 
     // Enqueue the kernel for execution
-    status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, 
+    status = clEnqueueNDRangeKernel(cmdQueue, kernel, 2, NULL, 
         globalWorkSize, NULL, 0, NULL, NULL);
     chk(status, "clEnqueueNDRangeKernel");
 
 
     // Read the device output buffer to the host output array
     clEnqueueReadBuffer(cmdQueue, bufC, CL_TRUE, 0, 
-        datasize, C, 0, NULL, NULL);
+        Cdatasize, C, 0, NULL, NULL);
     chk(status, "clEnqueueReadBuffer");
 
 
     // Verify the output
-
+    printf("Doing cpu multiplication...\n");
     simpleMultiplyCPU(C_cpu, *Acols, *Arows, *Bcols,*Brows, A, B);
-
+    printf("...done\n");
     int result = 1;
     int idx;
+    double diff;
     for (idx = 0; idx < Cdatasize; idx ++)
     {
-        if (C[i] != C_cpu[i])
+        diff = C[idx] - C_cpu[idx];
+        if (diff < 0) diff *= -1;
+        if (diff > 0.0001)
         {
             result = 0;
-            break
+            printf("Breaking, index = %d\n", idx);
+            printf("OCL: %f\n", C[idx]);
+            printf("CPU: %f\n", C_cpu[idx]);
+
+            break;
         }
     }
     if(result) {
