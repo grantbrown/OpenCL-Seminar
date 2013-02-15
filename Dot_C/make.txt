@@ -1,0 +1,5 @@
+gcc -std=gnu99 -I/usr/share/R/include   -I/usr/local/NVIDIA_GPU_SDK/OpenCL/common/inc \
+    -L/usr/lib64/  -lOpenCL  -fpic  -O3 -pipe  -g -c vectoradd.c -o vectoradd.o
+
+gcc -shared -I/usr/share/R/include -I/usr/local/NVIDIA_GPU_SDK/OpenCL/common/inc\
+    -L/usr/lib64 -lOpenCL -Wl vectoradd.o -o vectoradd.so -lc 
