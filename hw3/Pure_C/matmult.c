@@ -7,6 +7,7 @@
 
 // OpenCL includes
 #include <CL/cl.h>
+#include <time.h>
 
 #define BLOCKSIZE 32
 
@@ -124,7 +125,7 @@ void simpleMultiplyCPU( float *C, int widthA, int heightA, int widthB,
 
 // OpenCL kernel to perform an element-wise addition
 
-int main() {
+int main(int argc, char** argv) {
     // This code executes on the OpenCL host
     
     const char* programSource = readSource("./matmult.kernel");
@@ -135,8 +136,37 @@ int main() {
     int* Bcols = (int *) malloc(sizeof(int));
 ;
 
-    float* A = readDataFile("./MatrixA.txt", Arows, Acols);  // Input array
-    float* B = readDataFile("./MatrixB.txt", Brows, Bcols);  // Input array
+    float* A = readDataFile(argv[1], Arows, Acols);  // Input array
+    float* B = readDataFile(argv[2], Brows, Bcols);  // Input array
+    int CPU;
+    int VERIFY;
+    printf("%d\n", argc);
+    if (argc <= 3)
+    {
+
+        CPU = 1;
+        VERIFY = 1;
+    }
+    else if (argc == 4)
+    {
+
+        CPU = ((*argv[3]) == 'T');
+        VERIFY = 1;
+    }
+    else
+    {
+
+        CPU = 1*( *argv[3] == 'T');
+        VERIFY = 1*( *argv[4] == 'T');
+    }
+    if (CPU)
+    {
+        printf("CPU On\n");
+        if (VERIFY)
+        {
+            printf("Verify on\n");
+        }
+    }
 
     int Adatasize = sizeof(float)*(*Arows)*(*Acols);
     int Bdatasize = sizeof(float)*(*Brows)*(*Bcols);
@@ -288,31 +318,37 @@ int main() {
 
 
     // Verify the output
-    printf("Doing cpu multiplication...\n");
-    simpleMultiplyCPU(C_cpu, *Acols, *Arows, *Bcols,*Brows, A, B);
-    printf("...done\n");
-    int result = 1;
-    int idx;
-    double diff;
-    for (idx = 0; idx < (*Arows)*(*Bcols); idx ++)
+    if (CPU)
     {
-        diff = C[idx] - C_cpu[idx];
-        if (diff < 0) diff *= -1;
-        if (diff > 0.0001)
+        printf("Doing cpu multiplication...\n");
+        simpleMultiplyCPU(C_cpu, *Acols, *Arows, *Bcols,*Brows, A, B);
+        printf("...done\n");
+        if (VERIFY)
         {
-            result = 0;
-            printf("Breaking, index = %d\n", idx);
-            printf("Total Data size is = %d\n", (*Arows)*(*Bcols));
-            printf("OCL: %f\n", C[idx]);
-            printf("CPU: %f\n", C_cpu[idx]);
+            int result = 1;
+            int idx;
+            double diff;
+            for (idx = 0; idx < (*Arows)*(*Bcols); idx ++)
+            {
+                diff = C[idx] - C_cpu[idx];
+                if (diff < 0) diff *= -1;
+                if (diff > 0.0001)
+                {
+                    result = 0;
+                    printf("Breaking, index = %d\n", idx);
+                    printf("Total Data size is = %d\n", (*Arows)*(*Bcols));
+                    printf("OCL: %f\n", C[idx]);
+                    printf("CPU: %f\n", C_cpu[idx]);
 
-            break;
+                    break;
+                }
+            }
+            if(result) {
+                printf("Output is correct\n");
+            } else {
+                printf("Output is incorrect\n");
+            }
         }
-    }
-    if(result) {
-        printf("Output is correct\n");
-    } else {
-        printf("Output is incorrect\n");
     }
 
     // Free OpenCL resources
