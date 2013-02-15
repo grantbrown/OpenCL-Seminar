@@ -350,6 +350,19 @@ int main(int argc, char** argv) {
             }
         }
     }
+    else
+    {
+        int num = (*Arows)*(*Bcols);
+        int idx;
+        float tmp;
+        for (idx = 0; idx < num; idx ++)
+        {
+            //Touch each item
+            tmp = C[idx];
+        }
+
+    }
+
 
     // Free OpenCL resources
     clReleaseKernel(kernel);
