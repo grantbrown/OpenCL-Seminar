@@ -102,6 +102,14 @@ float* transposeDataMatrix(float* inData, int nrow, int ncol)
     }
     return(newvector);
 }
+void stoptime( clock_t start, char msg[] )
+{
+    clock_t end ;
+    double cpu_time_used;
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("CPU time used for %s = %.3lf \n", msg, cpu_time_used) ;
+}
 void simpleMultiplyCPU( float *C, int widthA, int heightA, int widthB,
     int heightB, float *A, float *B)
 {
@@ -185,6 +193,7 @@ int main()
     float* B = transposeDataMatrix(B1, *Brows, *Bcols);  // Input array
    
 
+    clock_t start;
 
     int Adatasize = sizeof(float)*(*Arows)*(*Acols);
     int Bdatasize = sizeof(float)*(*Brows)*(*Bcols);
@@ -246,6 +255,7 @@ int main()
 
     // Create a buffer object that will contain the data 
     // from the host array A
+    start = clock();
     cl_mem bufA;
     bufA = clCreateBuffer(context, CL_MEM_READ_ONLY, Adatasize, NULL, &status);
     chk(status, "clCreateBuffer");
@@ -329,14 +339,15 @@ int main()
 
     // enqueue the kernel for execution
 
-    printf("1\n");
+
     status = clEnqueueNDRangeKernel(cmdQueue, kernel[0], 2, NULL, 
         globalworksize, localWorkSize, 0, NULL, NULL);
     chk(status, "clenqueuendrangekernel");
-    printf("2\n");
 
 
 
+    clFinish(cmdQueue);
+    stoptime(start,"OCL: Move data to device and multiply matrices.");
 
     // read the device output buffer to the host output array
     clEnqueueReadBuffer(cmdQueue, bufC, 1, 0, 
@@ -345,9 +356,9 @@ int main()
 
     //Verification code goes here
         float* C_cpu = (float*) malloc(sizeof(float)*Cdatasize);
+        start = clock();
         simpleMultiplyCPU(C_cpu, *Acols, *Arows, *Bcols,*Brows, A, B1);
-
-
+        stoptime(start, "CPU: Multiply Matrices");
 
         int result = 1;
         int idx;
