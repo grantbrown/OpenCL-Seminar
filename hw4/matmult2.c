@@ -65,7 +65,7 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename,
     {
         program_buffer[i] = definestr[i];
     }
-    printf("%s", program_buffer);
+    //printf("%s", program_buffer);
     fclose(program_handle);
 
 
@@ -237,9 +237,9 @@ int main()
 
     }
 
-    scalar_sum = (float*) malloc(sizeof(float)*local_size);
-    BLOCKSIZE = sqrt(local_size);
-    num_groups = (*Arows)*(*Bcols)/BLOCKSIZE;
+
+
+
     //if ((num_groups % BLOCKSIZE) == 0)
     //{
     //    num_groups = num_groups/BLOCKSIZE;
@@ -313,11 +313,6 @@ int main()
     chk(status, "clCreateBuffer");
 
 
-    //Create local data buffer
-    cl_mem partialSumBuf;
-    partialSumBuf = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR
-            , local_size*sizeof(float), scalar_sum, &status);
-    chk(status, "clCreateBuffer");
 
 
     // Write input array A to the device buffer bufferA
@@ -338,9 +333,6 @@ int main()
     status  = clSetKernelArg(kernel[0], 0, sizeof(cl_mem), &bufC);
     status |= clSetKernelArg(kernel[0], 1, sizeof(cl_mem), &bufA);
     status |= clSetKernelArg(kernel[0], 2, sizeof(cl_mem), &bufB);
-    //status |= clSetKernelArg(kernel[0], 3, sizeof(cl_mem), &partialSumBuf);
-    //status |= clSetKernelArg(kernel[0], 3, sizeof(cl_mem), NULL);
-
     status |= clSetKernelArg(kernel[0], 3, sizeof(int), Arows);
     status |= clSetKernelArg(kernel[0], 4, sizeof(int), Brows);
     status |= clSetKernelArg(kernel[0], 5, sizeof(int), Acols);
@@ -416,7 +408,7 @@ int main()
     clReleaseMemObject(bufA);
     clReleaseMemObject(bufB);
     clReleaseMemObject(bufC);
-    clReleaseMemObject(partialSumBuf);
+
     clReleaseContext(context);
 
     // Free host resources
@@ -425,7 +417,7 @@ int main()
     free(C);
     free(B1);
 
-    free(scalar_sum);
+
 
 
 

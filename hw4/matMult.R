@@ -16,8 +16,8 @@ writeMatrixToFile = function(mat, filename)
 
 }
 
-mat1 = simulateMatrix(100,120)
-mat2 = simulateMatrix(120,1000)
+mat1 = simulateMatrix(500,500)
+mat2 = simulateMatrix(500,800)
 writeMatrixToFile(mat1, "./A.txt")
 writeMatrixToFile(mat2, "./B.txt")
 
