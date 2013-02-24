@@ -1,0 +1,26 @@
+__kernel void matmult(
+  __global float* output,
+  __global float* A,
+  __global float* B,
+
+ const unsigned int Arows,
+ const unsigned int Brows,
+ const unsigned int Acols,
+ const unsigned int Bcols)
+{
+  int OutputCol = (get_global_id(0));
+  int OutputRow = (get_global_id(1));
+
+  if(OutputCol < Bcols && OutputRow < Arows)
+  {
+    int i;
+    float tot = 0;
+    for (i = 0; i < Acols; i++)
+    {
+        tot += A[OutputRow*Acols + i]*B[OutputCol + i*Bcols];
+    }
+    output[OutputRow*Bcols + OutputCol] = tot ; 
+  }
+};
+
+
