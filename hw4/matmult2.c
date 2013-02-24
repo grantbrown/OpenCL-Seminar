@@ -183,7 +183,7 @@ int main()
     float* A = readDataFile("A.txt", Arows, Acols);  // Input array
     float* B1 = readDataFile("B.txt", Brows, Bcols);  // Input array
     float* B = transposeDataMatrix(B1, *Brows, *Bcols);  // Input array
-    free(B1);
+   
 
 
     int Adatasize = sizeof(float)*(*Arows)*(*Acols);
@@ -345,7 +345,7 @@ int main()
 
     //Verification code goes here
         float* C_cpu = (float*) malloc(sizeof(float)*Cdatasize);
-        simpleMultiplyCPU(C_cpu, *Acols, *Arows, *Bcols,*Brows, A, B);
+        simpleMultiplyCPU(C_cpu, *Acols, *Arows, *Bcols,*Brows, A, B1);
 
 
 
@@ -390,6 +390,8 @@ int main()
     free(A);
     free(B);
     free(C);
+    free(B1);
+
     free(scalar_sum);
 
 
