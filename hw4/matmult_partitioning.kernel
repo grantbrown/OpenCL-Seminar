@@ -47,6 +47,7 @@ __kernel void matmult(
     int bBegin = Brows * BLOCK_SIZE * OutputColBlock;
     int bEnd = bBegin + Brows -1;
 
+    float Csub = 0.0;
     int a, b;
     for (a = aBegin, b = bBegin;
         a <= aEnd; 
@@ -62,14 +63,15 @@ __kernel void matmult(
             B[b + Brows * WithinBlockRow + WithinBlockCol];
         barrier(CLK_LOCAL_MEM_FENCE);
         int k;
-        float Csub = 0.0;
+
         for (k = 0; k < BLOCK_SIZE; ++ k)
             Csub += As[WithinBlockRow][k] * Bs[WithinBlockCol][k];
 
         barrier(CLK_LOCAL_MEM_FENCE);
 
-        output[OutputRow*Bcols + OutputCol] = Csub;
+
     }
+    output[OutputRow*Bcols + OutputCol] = Csub;
   }
 
 };

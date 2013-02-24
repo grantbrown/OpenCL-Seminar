@@ -389,7 +389,7 @@ int main()
         {
             diff = C[idx] - C_cpu[idx];
             if (diff < 0) diff *= -1;
-            if (diff > 0.001)
+            if (diff > 0.01)
             {
                 result = 0;
                 printf("Breaking, index = %d\n", idx);
