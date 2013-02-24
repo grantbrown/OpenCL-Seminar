@@ -1,7 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 //What does this do?
 #define NUM_KERNELS 1
-#define PROGRAM_FILE "./matmult.kernel"
+#define PROGRAM_FILE "./matmult_partitioning.kernel"
 
 #include <math.h>
 #include <stdio.h> 
@@ -39,7 +39,7 @@ cl_device_id create_device()
 }
 
 
-cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename)
+cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename, char* definestr, int lendefinestr)
 {
     cl_program program;
     FILE *program_handle;
@@ -56,9 +56,16 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename)
     fseek(program_handle, 0, SEEK_END);
     program_size = ftell(program_handle);
     rewind(program_handle);
-    program_buffer = (char*) malloc(program_size + 1);
+    program_buffer = (char*) malloc(program_size + lendefinestr + 1);
     program_buffer[program_size] = '\0';
     fread(program_buffer, sizeof(char), program_size, program_handle);
+
+    int i;
+    for (i = 0; i < lendefinestr; i ++)
+    {
+        program_buffer[i] = definestr[i];
+    }
+    printf("%s", program_buffer);
     fclose(program_handle);
 
 
@@ -251,7 +258,40 @@ int main()
     cmdQueue = clCreateCommandQueue(context, device, 
             CL_QUEUE_PROFILING_ENABLE,&status);
     chk(status, "create cmd queue");
-    program = build_program(context, device, PROGRAM_FILE);
+
+
+    // define an index space (global work size) of work 
+    // items for execution. a workgroup size (local work size) 
+    // is not required, but can be used.
+
+    size_t globalworksize[2] ;   
+    size_t localWorkSize[2];
+
+    // Choose local size appropriately. 
+    int ls;
+    int totSize = (*Arows)*(*Bcols);
+    for (ls = sqrt(local_size)/2; 1; ls --)
+    {
+        if (((*Bcols)%ls == 0) & ((*Acols)%ls == 0)) 
+        {
+
+            break;
+        }
+    }
+    localWorkSize[0] = ls;
+    localWorkSize[1] = ls;
+    // there are 'elements' work-items 
+    globalworksize[0] = *Bcols;
+    globalworksize[1] = *Arows;
+    //
+
+
+    printf("Local work block size is: %d\n", ls);
+    int lendefstr = 19 + (ls < 10 ? 1 :(ls <100 ? 2 : (ls < 1000?3:5)));
+
+    char defstr[lendefstr];
+    sprintf(defstr, "#define BLOCK_SIZE %d", ls); 
+    program = build_program(context, device, PROGRAM_FILE, defstr,  lendefstr);
 
     // Create a buffer object that will contain the data 
     // from the host array A
@@ -293,6 +333,7 @@ int main()
     kernel[0] = clCreateKernel(program, "matmult", &status);
     chk(status, "clCreateKernel");
 
+
     // associate the input and output buffers with the kernel 
     status  = clSetKernelArg(kernel[0], 0, sizeof(cl_mem), &bufC);
     status |= clSetKernelArg(kernel[0], 1, sizeof(cl_mem), &bufA);
@@ -305,29 +346,10 @@ int main()
     status |= clSetKernelArg(kernel[0], 5, sizeof(int), Acols);
     status |= clSetKernelArg(kernel[0], 6, sizeof(int), Bcols);
 
+
+
     chk(status, "clSetKernelArg");
 
-    // define an index space (global work size) of work 
-    // items for execution. a workgroup size (local work size) 
-    // is not required, but can be used.
-
-    size_t globalworksize[2] ;   
-    //size_t localWorkSize[2] = {BLOCKSIZE, BLOCKSIZE} ;   
-    size_t localWorkSize[2];
-    //localWorkSize[0] = local_size;
-    // Choose local size appropriately. 
-    int ls;
-    int totSize = (*Arows)*(*Bcols);
-    for (ls = sqrt(local_size); totSize % ls != 0; ls --)
-    {
-        //Do nothing
-    }
-    localWorkSize[0] = ls;
-    localWorkSize[1] = ls;
-    // there are 'elements' work-items 
-    globalworksize[0] = *Bcols;
-    globalworksize[1] = *Arows;
-    //
     //
 
     /* size_t globalWorkSize[2] = {widthB, heightA};  // dims of outputC  */

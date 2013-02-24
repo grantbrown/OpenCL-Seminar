@@ -1,0 +1,77 @@
+                             
+                             
+                             
+/*Leave white space for procedurally generated define statement*/
+/*
+
+    Matrix multiplication algorithm based on partitioning. Ideas 
+    inspired by: 
+    http://gpgpu-computing4.blogspot.com/2009/10/matrix-multiplication-3-opencl.html
+
+
+    Took me a while to figure out how the algorthm was working: I didn't 
+    understand how the outer loop functioned. It basically comes down to
+
+    [[A11 A12]        [[B11 B12]           [(A11*B11 + A12*B22) (A11*B12 + A12*B22)]
+     [A21 A22]]   X    [B21 B22]]     =    [(A21*B11 + A22*B21) (A21*B12 + A22*B22)]
+
+*/
+
+__kernel void matmult(
+  __global float* output,
+  __global float* A,
+  __global float* B,
+
+ const unsigned int Arows,
+ const unsigned int Brows,
+ const unsigned int Acols,
+ const unsigned int Bcols)
+{
+
+  int OutputColBlock = get_group_id(0);
+  int OutputRowBlock = get_group_id(1);
+  
+  int WithinBlockCol = get_local_id(0);
+  int WithinBlockRow = get_local_id(1);
+
+  int OutputCol = (get_global_id(0));
+  int OutputRow = (get_global_id(1));
+
+  if(OutputCol < Bcols && OutputRow < Arows)
+  {
+
+    int aBegin = Acols * BLOCK_SIZE * OutputRowBlock;
+    int aEnd = aBegin + Acols - 1;
+
+    // Remember, B is transposed.
+    int bBegin = Brows * BLOCK_SIZE * OutputColBlock;
+    int bEnd = bBegin + Brows -1;
+
+    int a, b;
+    for (a = aBegin, b = bBegin;
+        a <= aEnd; 
+        a += BLOCK_SIZE, b += BLOCK_SIZE)
+    {
+        __local float As[BLOCK_SIZE][BLOCK_SIZE];
+        __local float Bs[BLOCK_SIZE][BLOCK_SIZE];
+        // Load up local data
+
+        As[WithinBlockRow][WithinBlockCol] =
+            A[a + Acols * WithinBlockRow + WithinBlockCol];
+        Bs[WithinBlockRow][WithinBlockCol] = 
+            B[b + Brows * WithinBlockRow + WithinBlockCol];
+        barrier(CLK_LOCAL_MEM_FENCE);
+        int k;
+        float Csub = 0.0;
+        for (k = 0; k < BLOCK_SIZE; ++ k)
+            Csub += As[WithinBlockRow][k] * Bs[WithinBlockCol][k];
+
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        output[OutputRow*Bcols + OutputCol] = Csub;
+    }
+  }
+
+};
+
+
