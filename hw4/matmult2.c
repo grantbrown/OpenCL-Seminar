@@ -207,13 +207,8 @@ int main()
     int Cdatasize = sizeof(float)*(*Arows)*(*Bcols);
 
     float* C = (float*) malloc(Cdatasize);  // Output array
-    float* scalar_sum;
-    int i;
-    for (i = 0; i < (*Arows)*(*Acols); i++)
-    {
-        C[i] = 0.0;
-    }
 
+    int i;
     cl_int status;  
      
     cl_device_id device;
@@ -269,28 +264,63 @@ int main()
 
     // Choose local size appropriately. 
     int ls;
-    int totSize = (*Arows)*(*Bcols);
-    for (ls = sqrt(local_size)/2; 1; ls --)
-    {
-        if (((*Bcols)%ls == 0) & ((*Acols)%ls == 0)) 
-        {
-
-            break;
-        }
-    }
+    ls = sqrt(local_size)/2;
+    ls = 10;
+    //int totSize = (*Arows)*(*Bcols);
+    //for (ls = sqrt(local_size)/2; 1; ls --)
+    //{
+    //    if (((*Bcols)%ls == 0) & ((*Acols)%ls == 0)) 
+    //    {
+    //
+    //        break;
+    //    }
+    //}
     localWorkSize[0] = ls;
     localWorkSize[1] = ls;
     // there are 'elements' work-items 
-    globalworksize[0] = *Bcols;
-    globalworksize[1] = *Arows;
+    globalworksize[0] = (*Bcols % ls == 0 ? *Bcols : (*Bcols/ls + 1)*ls);
+    globalworksize[1] = (*Arows % ls == 0 ? *Arows : (*Arows/ls + 1)*ls);
     //
 
 
+    Bdatasize = *Brows * globalworksize[0];
+    Adatasize = *Acols * globalworksize[1];
+    Cdatasize = globalworksize[0]*globalworksize[1];
+
+    A = (float*) realloc(A, sizeof(float)*(Adatasize));
+    status = (A == NULL);
+    B = (float*) realloc(B, sizeof(float)*(Bdatasize));
+    status |= (B == NULL);
+    C = (float*) realloc(C, sizeof(float)*Cdatasize);
+    status = (C == NULL);
+    chk(status, "Reallocation.");
+
+
+    
+
+    for (i = 0; i < Cdatasize; i++)
+    {
+        C[i] = 0.0;
+    }
+    for (i = (*Arows)*(*Acols); i < (Adatasize); i++)
+    {
+        A[i] = 0.0;
+    }
+    for (i = (*Brows)*(*Bcols); i < (Bdatasize); i++)
+    {
+        B[i] = 0.0;
+    }
+
+
+
     printf("Local work block size is: %d\n", ls);
+    printf("Global work size is: %d by %d\n", globalworksize[0], globalworksize[1]);
+
     int lendefstr = 19 + (ls < 10 ? 1 :(ls <100 ? 2 : (ls < 1000?3:5)));
 
     char defstr[lendefstr];
     sprintf(defstr, "#define BLOCK_SIZE %d", ls); 
+    printf("%s\n", defstr);
     program = build_program(context, device, PROGRAM_FILE, defstr,  lendefstr);
 
     // Create a buffer object that will contain the data 
@@ -343,14 +373,6 @@ int main()
     chk(status, "clSetKernelArg");
 
     //
-
-    /* size_t globalWorkSize[2] = {widthB, heightA};  // dims of outputC  */
-    //int wB1 = (*Bcols) / BLOCKSIZE + ((*Bcols) % BLOCKSIZE==0? 0:1);
-    //int hA1 = (*Arows) / BLOCKSIZE  + ((*Arows) % BLOCKSIZE==0? 0:1);
-    //size_t globalWorkSize[2] = {wB1 * BLOCKSIZE, hA1 * BLOCKSIZE};  
-    //
-    //
-
     // enqueue the kernel for execution
 
 
@@ -367,6 +389,8 @@ int main()
     clEnqueueReadBuffer(cmdQueue, bufC, 1, 0, 
         Cdatasize, C, 0, NULL, NULL);
     chk(status, "clenqueuereadbuffer");
+    //clFinish(cmdQueue);
+
 
     //Verification code goes here
         float* C_cpu = (float*) malloc(sizeof(float)*Cdatasize);
