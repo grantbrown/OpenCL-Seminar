@@ -25,7 +25,12 @@ __kernel void matmult(
  const unsigned int Arows,
  const unsigned int Brows,
  const unsigned int Acols,
- const unsigned int Bcols)
+ const unsigned int Bcols,
+ const unsigned int ApadC,
+ const unsigned int BpadR,
+ const unsigned int BpadC
+
+ )
 {
 
   int OutputColBlock = get_group_id(0);
@@ -40,15 +45,16 @@ __kernel void matmult(
   if(OutputCol < Bcols && OutputRow < Arows)
   {
 
-    int aBegin = Acols * BLOCK_SIZE * OutputRowBlock;
-    int aEnd = aBegin + Acols - 1;
+    int aBegin = (Acols + ApadC) * BLOCK_SIZE * OutputRowBlock;
+    int aEnd = aBegin + (Acols + ApadC) - 1;
 
     // Remember, B is transposed.
-    int bBegin = Brows * BLOCK_SIZE * OutputColBlock;
-    int bEnd = bBegin + Brows -1;
-
+    int bBegin = (Brows+BpadR) * BLOCK_SIZE * OutputColBlock;
+    int bEnd = bBegin + (Brows) -1;
+    int aIdx; int bIdx;
     float Csub = 0.0;
     int a, b;
+    int avalid, bvalid;
     for (a = aBegin, b = bBegin;
         a <= aEnd; 
         a += BLOCK_SIZE, b += BLOCK_SIZE)
@@ -56,11 +62,13 @@ __kernel void matmult(
         __local float As[BLOCK_SIZE][BLOCK_SIZE];
         __local float Bs[BLOCK_SIZE][BLOCK_SIZE];
         // Load up local data
+        aIdx = a + (Acols + ApadC) * WithinBlockRow + WithinBlockCol;
+        bIdx = b + (Brows + BpadR) * WithinBlockRow + WithinBlockCol; 
 
         As[WithinBlockRow][WithinBlockCol] =
-            A[a + Acols * WithinBlockRow + WithinBlockCol];
+            A[aIdx];
         Bs[WithinBlockRow][WithinBlockCol] = 
-            B[b + Brows * WithinBlockRow + WithinBlockCol];
+            B[bIdx];
         barrier(CLK_LOCAL_MEM_FENCE);
         int k;
 
@@ -71,8 +79,9 @@ __kernel void matmult(
 
 
     }
-    output[OutputRow*Bcols + OutputCol] = Csub;
+    output[OutputRow*(Bcols) + OutputCol] = Csub;
   }
+
 
 };
 

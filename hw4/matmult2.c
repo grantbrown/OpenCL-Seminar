@@ -93,6 +93,36 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename,
     return(program);
 }
 
+float* padDataMatrix(float* inData, int nrow, int ncol, int padcol, int padrow)
+{
+    float* paddedMatrix = (float*) malloc(sizeof(float)*(nrow + padrow)*(ncol + padcol));
+    int rw = 0;
+    int col = 0;
+    int idx = 0;
+    for (rw = 0; rw < nrow; rw ++)
+    {
+        for (col = 0; col < ncol; col ++)
+        {
+            paddedMatrix[idx] = inData[col + rw*ncol];
+            idx += 1;
+        }
+        for (col = 0; col < padcol; col ++)
+        {
+            paddedMatrix[idx] = 0.0;
+            idx += 1;
+        }
+    }
+    for (rw = 0; rw < padrow; rw ++)
+    {
+        for (col = 0; col < (ncol + padcol); col ++)
+        {
+            paddedMatrix[idx] = 0.0;
+            idx += 1;
+        }
+    }
+    return(paddedMatrix);
+}
+
 float* transposeDataMatrix(float* inData, int nrow, int ncol)
 {
     float* newvector = (float*) malloc(sizeof(float)*nrow*ncol);
@@ -265,7 +295,7 @@ int main()
     // Choose local size appropriately. 
     int ls;
     ls = sqrt(local_size)/2;
-    ls = 10;
+    //ls = 10;
     //int totSize = (*Arows)*(*Bcols);
     //for (ls = sqrt(local_size)/2; 1; ls --)
     //{
@@ -281,37 +311,55 @@ int main()
     globalworksize[0] = (*Bcols % ls == 0 ? *Bcols : (*Bcols/ls + 1)*ls);
     globalworksize[1] = (*Arows % ls == 0 ? *Arows : (*Arows/ls + 1)*ls);
     //
+    int Apad_rows = globalworksize[1] - *Arows;
+    int Apad_cols = (*Acols % ls == 0 ? *Acols : (*Acols/ls + 1) * ls) - *Acols;
+    int Bpad_rows = Apad_cols;
+    int Bpad_cols = Apad_rows;
 
 
-    Bdatasize = *Brows * globalworksize[0];
-    Adatasize = *Acols * globalworksize[1];
-    Cdatasize = globalworksize[0]*globalworksize[1];
 
-    A = (float*) realloc(A, sizeof(float)*(Adatasize));
+    Bdatasize = sizeof(float)*((*Brows + Bpad_rows)*(*Bcols + Bpad_cols));
+    Adatasize = sizeof(float)*((*Arows + Apad_rows)*(*Acols + Apad_cols));
+    Cdatasize = sizeof(float)*(globalworksize[0]*globalworksize[1]);
+
+    float* A2; float* B2; float* C2;
+    A2 = padDataMatrix(A, *Arows, *Acols, Apad_cols, Apad_rows);
+    B2 = padDataMatrix(B, *Bcols, *Brows, Bpad_rows, Bpad_cols);
+
+    float* tmp1; float* tmp2;
+    tmp1 = A; tmp2 = B;
+    A = A2;
+    B = B2;
+    free(tmp1);
+    free(tmp2);
+
+/*
+    A = (float*) realloc(A, (Adatasize));
     status = (A == NULL);
-    B = (float*) realloc(B, sizeof(float)*(Bdatasize));
+    B = (float*) realloc(B, (Bdatasize));
     status |= (B == NULL);
-    C = (float*) realloc(C, sizeof(float)*Cdatasize);
+*/
+    C = (float*) realloc(C, Cdatasize);
     status = (C == NULL);
+
     chk(status, "Reallocation.");
 
-
-    
-
-    for (i = 0; i < Cdatasize; i++)
+ 
+    for (i = 0; i < Cdatasize/sizeof(float); i++)
     {
         C[i] = 0.0;
     }
-    for (i = (*Arows)*(*Acols); i < (Adatasize); i++)
+
+    /*
+    for (i = (*Arows)*(*Acols + Apad_cols); i < (Adatasize/sizeof(float)); i++)
     {
         A[i] = 0.0;
     }
-    for (i = (*Brows)*(*Bcols); i < (Bdatasize); i++)
+    for (i = (*Bcols)*(*Brows + Bpad_rows); i < (Bdatasize/sizeof(float)); i++)
     {
         B[i] = 0.0;
     }
-
-
+    */
 
     printf("Local work block size is: %d\n", ls);
     printf("Global work size is: %d by %d\n", globalworksize[0], globalworksize[1]);
@@ -325,6 +373,7 @@ int main()
 
     // Create a buffer object that will contain the data 
     // from the host array A
+
     start = clock();
     cl_mem bufA;
     bufA = clCreateBuffer(context, CL_MEM_READ_ONLY, Adatasize, NULL, &status);
@@ -359,6 +408,8 @@ int main()
     chk(status, "clCreateKernel");
 
 
+
+
     // associate the input and output buffers with the kernel 
     status  = clSetKernelArg(kernel[0], 0, sizeof(cl_mem), &bufC);
     status |= clSetKernelArg(kernel[0], 1, sizeof(cl_mem), &bufA);
@@ -367,6 +418,12 @@ int main()
     status |= clSetKernelArg(kernel[0], 4, sizeof(int), Brows);
     status |= clSetKernelArg(kernel[0], 5, sizeof(int), Acols);
     status |= clSetKernelArg(kernel[0], 6, sizeof(int), Bcols);
+    status |= clSetKernelArg(kernel[0], 7, sizeof(int), &Apad_cols);
+    status |= clSetKernelArg(kernel[0], 8, sizeof(int), &Bpad_rows);
+    status |= clSetKernelArg(kernel[0], 9, sizeof(int), &Bpad_cols);
+
+
+
 
 
 
@@ -393,7 +450,7 @@ int main()
 
 
     //Verification code goes here
-        float* C_cpu = (float*) malloc(sizeof(float)*Cdatasize);
+        float* C_cpu = (float*) malloc(Cdatasize);
         start = clock();
         simpleMultiplyCPU(C_cpu, *Acols, *Arows, *Bcols,*Brows, A, B1);
         stoptime(start, "CPU: Multiply Matrices");
