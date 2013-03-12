@@ -42,15 +42,14 @@ __kernel void matmult(
   int OutputCol = (get_global_id(0));
   int OutputRow = (get_global_id(1));
 
-  if(OutputCol < Bcols && OutputRow < Arows)
+  if (1)
   {
 
     int aBegin = (Acols + ApadC) * BLOCK_SIZE * OutputRowBlock;
-    int aEnd = aBegin + (Acols + ApadC) - 1;
+    int aEnd = aBegin + (Acols) - 1;
 
     // Remember, B is transposed.
-    int bBegin = (Brows+BpadR) * BLOCK_SIZE * OutputColBlock;
-    int bEnd = bBegin + (Brows) -1;
+    int bBegin = (Brows+BpadR ) * BLOCK_SIZE * OutputColBlock;
     int aIdx; int bIdx;
     float Csub = 0.0;
     int a, b;
@@ -76,10 +75,11 @@ __kernel void matmult(
             Csub += As[WithinBlockRow][k] * Bs[WithinBlockCol][k];
 
         barrier(CLK_LOCAL_MEM_FENCE);
-
-
     }
-    output[OutputRow*(Bcols) + OutputCol] = Csub;
+    if(OutputCol < Bcols && OutputRow < Arows)
+    {
+        output[OutputRow*(Bcols) + OutputCol] = Csub;
+    }
   }
 
 

@@ -227,7 +227,7 @@ int main()
 
     float* A = readDataFile("A.txt", Arows, Acols);  // Input array
     float* B1 = readDataFile("B.txt", Brows, Bcols);  // Input array
-    float* B = transposeDataMatrix(B1, *Brows, *Bcols);  // Input array
+
    
 
     clock_t start;
@@ -295,6 +295,7 @@ int main()
     // Choose local size appropriately. 
     int ls;
     ls = sqrt(local_size)/2;
+
     //ls = 10;
     //int totSize = (*Arows)*(*Bcols);
     //for (ls = sqrt(local_size)/2; 1; ls --)
@@ -313,10 +314,9 @@ int main()
     //
     int Apad_rows = globalworksize[1] - *Arows;
     int Apad_cols = (*Acols % ls == 0 ? *Acols : (*Acols/ls + 1) * ls) - *Acols;
+
     int Bpad_rows = Apad_cols;
-    int Bpad_cols = Apad_rows;
-
-
+    int Bpad_cols = globalworksize[0] - *Bcols;
 
     Bdatasize = sizeof(float)*((*Brows + Bpad_rows)*(*Bcols + Bpad_cols));
     Adatasize = sizeof(float)*((*Arows + Apad_rows)*(*Acols + Apad_cols));
@@ -324,15 +324,16 @@ int main()
 
     float* A2; float* B2; float* C2;
     A2 = padDataMatrix(A, *Arows, *Acols, Apad_cols, Apad_rows);
-    B2 = padDataMatrix(B, *Bcols, *Brows, Bpad_rows, Bpad_cols);
+    B2 = padDataMatrix(B1, *Brows, *Bcols, Bpad_cols, Bpad_rows);
 
-    float* tmp1; float* tmp2;
-    tmp1 = A; tmp2 = B;
+    float* tmp1; 
+    tmp1 = A; 
     A = A2;
-    B = B2;
-    free(tmp1);
-    free(tmp2);
 
+    free(tmp1);
+
+
+    float* B = transposeDataMatrix(B2, *Brows + Bpad_rows, *Bcols + Bpad_cols);  // Input array
 /*
     A = (float*) realloc(A, (Adatasize));
     status = (A == NULL);
@@ -458,6 +459,7 @@ int main()
         int result = 1;
         int idx;
         double diff;
+
         for (idx = 0; idx < (*Arows)*(*Bcols); idx ++)
         {
             diff = C[idx] - C_cpu[idx];
@@ -467,7 +469,7 @@ int main()
                 result = 0;
                 printf("Breaking, index = %d\n", idx);
                 printf("Total Data size is = %d\n", (*Arows)*(*Bcols));
-                printf("OCL: %f\n", C[idx]);
+                printf("OCL: %f\n", C[idx/(*Arows)*(*Arows + Apad_rows) + idx%(*Arows)]);
                 printf("CPU: %f\n", C_cpu[idx]);
 
                 break;
