@@ -1,0 +1,8 @@
+setenv LD_LIBRARY_PATH ./
+echo "Compile libbmpfuncs.o ..."
+gcc -fPIC -c ./bmpfuncs.c -o libbmpfuncs.o
+echo "Compiled. Making shared object..."
+R CMD SHLIB ./libbmpfuncs.o
+echo "Shared object created. Compiling main..."
+gcc   -I/opt/cuda/sdk/OpenCL/common/inc -L/usr/lib64/nvidia -L./ -lOpenCL -lm -lbmpfuncs  convolution.c -o convolution.o
+
