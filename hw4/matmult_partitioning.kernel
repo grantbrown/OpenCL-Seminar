@@ -1,88 +1,109 @@
-                             
-                             
-                             
-/*Leave white space for procedurally generated define statement*/
-/*
+                                  
 
-    Matrix multiplication algorithm based on partitioning. Ideas 
-    inspired by: 
-    http://gpgpu-computing4.blogspot.com/2009/10/matrix-multiplication-3-opencl.html
+#ifdef FP_64
+#pragma OPENCL EXTENSION cl_khr_fp64: enable
+#endif
 
+__kernel                                                  
+void matmult(                                     
+  __global float * C,                                     
+  __global float* A,                                      
+  __global float* B,                                      
+  const int numARows,  
+  const int numBRows,                                     
+  const int numAColumns,                                                                     
+  const int numBColumns,                                  
+  __local float* Al,                                      
+  __local float* Bl)                                      
+{                                                         
+                                                          
+   // Get the work-item’s unique ID                       
+   int Row = get_global_id(1);                            
+   int Col = get_global_id(0);                            
+   int tx = get_local_id(0); int ty = get_local_id(1) ;   
+   int tile_width = get_local_size(0) ;                   
+                                                          
+   float sum = 0.0f ;                                     
+   int idx = ty * tile_width + tx ;                       
+                                                          
+   // process tiles                                       
+    for( int m = 0; m < (numAColumns-1) / tile_width+1; ++m) 
+     {                                                    
+                                                          
+        // copy tile from global to local memory          
+        if( Row < numARows && m * tile_width + tx < numAColumns) 
+            Al[idx] = A[Row*numAColumns + m * tile_width + tx] ; 
+        else                                              
+            Al[idx] = 0;                                  
+        if( m * tile_width + ty < numBRows && Col < numBColumns) 
+            Bl[idx] = B[(m * tile_width + ty) * numBColumns + Col] ; 
+        else                                              
+            Bl[idx] = 0 ;                                 
+        barrier(CLK_LOCAL_MEM_FENCE) ;                    
+                                                          
+        // inner product                                  
+        for (int k = 0; k < tile_width; ++k)              
+        {                                                 
+          sum += Al[ty * tile_width + k] * Bl[k * tile_width + tx] ;  
+        }                                                 
+        barrier(CLK_LOCAL_MEM_FENCE) ;                    
+                                                          
+     }                                                    
+   // if element is in bounds, copy result to global memory 
+   if(( Row < numARows) && (Col < numBColumns))           
+     {                                                    
+       C[Row * numBColumns + Col] = sum ;                 
+     }                                                    
+}                                                         
 
-    Took me a while to figure out how the algorthm was working: I didn't 
-    understand how the outer loop functioned. It basically comes down to
-
-    [[A11 A12]        [[B11 B12]           [(A11*B11 + A12*B22) (A11*B12 + A12*B22)]
-     [A21 A22]]   X    [B21 B22]]     =    [(A21*B11 + A22*B21) (A21*B12 + A22*B22)]
-
-*/
-
-__kernel void matmult(
-  __global float* output,
-  __global float* A,
-  __global float* B,
-
- const unsigned int Arows,
- const unsigned int Brows,
- const unsigned int Acols,
- const unsigned int Bcols,
- const unsigned int ApadC,
- const unsigned int BpadR,
- const unsigned int BpadC
-
- )
-{
-
-  int OutputColBlock = get_group_id(0);
-  int OutputRowBlock = get_group_id(1);
-  
-  int WithinBlockCol = get_local_id(0);
-  int WithinBlockRow = get_local_id(1);
-
-  int OutputCol = (get_global_id(0));
-  int OutputRow = (get_global_id(1));
-
-  if (1)
-  {
-
-    int aBegin = (Acols + ApadC) * BLOCK_SIZE * OutputRowBlock;
-    int aEnd = aBegin + (Acols) - 1;
-
-    // Remember, B is transposed.
-    int bBegin = (Brows+BpadR ) * BLOCK_SIZE * OutputColBlock;
-    int aIdx; int bIdx;
-    float Csub = 0.0;
-    int a, b;
-    int avalid, bvalid;
-    for (a = aBegin, b = bBegin;
-        a <= aEnd; 
-        a += BLOCK_SIZE, b += BLOCK_SIZE)
-    {
-        __local float As[BLOCK_SIZE][BLOCK_SIZE];
-        __local float Bs[BLOCK_SIZE][BLOCK_SIZE];
-        // Load up local data
-        aIdx = a + (Acols + ApadC) * WithinBlockRow + WithinBlockCol;
-        bIdx = b + (Brows + BpadR) * WithinBlockRow + WithinBlockCol; 
-
-        As[WithinBlockRow][WithinBlockCol] =
-            A[aIdx];
-        Bs[WithinBlockRow][WithinBlockCol] = 
-            B[bIdx];
-        barrier(CLK_LOCAL_MEM_FENCE);
-        int k;
-
-        for (k = 0; k < BLOCK_SIZE; ++ k)
-            Csub += As[WithinBlockRow][k] * Bs[WithinBlockCol][k];
-
-        barrier(CLK_LOCAL_MEM_FENCE);
-    }
-    if(OutputCol < Bcols && OutputRow < Arows)
-    {
-        output[OutputRow*(Bcols) + OutputCol] = Csub;
-    }
-  }
-
-
-};
-
-
+__kernel                                                  
+void matmult_fp64(                                     
+  __global double * C,                                     
+  __global double* A,                                      
+  __global double* B,                                      
+  const int numARows,  
+  const int numBRows,                                     
+  const int numAColumns,                                                                     
+  const int numBColumns,                                  
+  __local double* Al,                                      
+  __local double* Bl)                                      
+{                                                         
+                                                          
+   // Get the work-item’s unique ID                       
+   int Row = get_global_id(1);                            
+   int Col = get_global_id(0);                            
+   int tx = get_local_id(0); int ty = get_local_id(1) ;   
+   int tile_width = get_local_size(0) ;                   
+                                                          
+   double sum = 0.0;                                     
+   int idx = ty * tile_width + tx ;                       
+                                                          
+   // process tiles                                       
+    for( int m = 0; m < (numAColumns-1) / tile_width+1; ++m) 
+     {                                                    
+                                                          
+        // copy tile from global to local memory          
+        if( Row < numARows && m * tile_width + tx < numAColumns) 
+            Al[idx] = A[Row*numAColumns + m * tile_width + tx] ; 
+        else                                              
+            Al[idx] = 0;                                  
+        if( m * tile_width + ty < numBRows && Col < numBColumns) 
+            Bl[idx] = B[(m * tile_width + ty) * numBColumns + Col] ; 
+        else                                              
+            Bl[idx] = 0 ;                                 
+        barrier(CLK_LOCAL_MEM_FENCE) ;                    
+                                                          
+        // inner product                                  
+        for (int k = 0; k < tile_width; ++k)              
+        {                                                 
+          sum += Al[ty * tile_width + k] * Bl[k * tile_width + tx] ;  
+        }                                                 
+        barrier(CLK_LOCAL_MEM_FENCE) ;                    
+                                                          
+     }                                                    
+   // if element is in bounds, copy result to global memory 
+   if(( Row < numARows) && (Col < numBColumns))           
+     {                                                    
+       C[Row * numBColumns + Col] = sum ;                 
+     }                                                    
+} 
