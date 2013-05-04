@@ -1,0 +1,26 @@
+#define Arows 10
+#define Acols 10
+#define Brows 10
+#define Bcols 10
+#define outputrows 10
+#define outputcols 10
+
+__kernel void mmult(__global float* A,
+  __global float* B,
+  __global float* output)
+{
+    int global_id_0 = get_global_id(0);
+    int global_id_1 = get_global_id(1);
+    output[global_id_0*outputrows + global_id_1] = 
+(A[(int) ((global_id_1)*Acols )]) * (B[(int)(global_id_0)])
++(A[(int) ((global_id_1)*Acols  + (1))]) * (B[(int) ((1)*Bcols  + (global_id_0))])
++(A[(int) ((global_id_1)*Acols  + (2.0))]) * (B[(int) ((2.0)*Bcols  + (global_id_0))])
++(A[(int) ((global_id_1)*Acols  + (3.0))]) * (B[(int) ((3.0)*Bcols  + (global_id_0))])
++(A[(int) ((global_id_1)*Acols  + (4.0))]) * (B[(int) ((4.0)*Bcols  + (global_id_0))])
++(A[(int) ((global_id_1)*Acols  + (5.0))]) * (B[(int) ((5.0)*Bcols  + (global_id_0))])
++(A[(int) ((global_id_1)*Acols  + (6.0))]) * (B[(int) ((6.0)*Bcols  + (global_id_0))])
++(A[(int) ((global_id_1)*Acols  + (7.0))]) * (B[(int) ((7.0)*Bcols  + (global_id_0))])
++(A[(int) ((global_id_1)*Acols  + (8.0))]) * (B[(int) ((8.0)*Bcols  + (global_id_0))])
++(A[(int) ((global_id_1)*Acols  + (9.0))]) * (B[(int) ((9.0)*Bcols  + (global_id_0))])
++10;
+}

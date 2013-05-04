@@ -1,0 +1,3 @@
+gcc   -I/opt/cuda/sdk/OpenCL/common/inc \
+    -L/usr/lib64/nvidia  -lOpenCL  matmult.c -o matmult.o
+
