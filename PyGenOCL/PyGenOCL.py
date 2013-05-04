@@ -218,8 +218,8 @@ __kernel void %s(""" %kernelName
         self.source += "    int global_id_1 = get_global_id(1);\n"
         self.source += "    output[global_id_0*outputrows + global_id_1] = \n" + patternstr + ";\n}"
 
-    def writeToFile(fname):
-        f = open("fname", "w")
+    def writeToFile(self, fname):
+        f = open(fname, "w")
         f.write(self.source)
         f.close()
             
@@ -230,6 +230,7 @@ if __name__ == "__main__":
     C =A.matrixMult(B).scalarAdd(10).transpose()
     K = Kernel("mmult", C, [A, B])
     print K.source
+    K.writeToFile("matmultTestKernel.kernel")
 
 
 
