@@ -12,24 +12,27 @@
 #include <time.h>
 #include <CL/cl.h>
 
-
 cl_device_id create_device()
 {
-    cl_platform_id platform;
-    cl_device_id dev;
     int err;
-
-    err = clGetPlatformIDs(1, &platform, NULL);
+    cl_uint num_platforms;
+    cl_platform_id platforms[100];
+    err = clGetPlatformIDs(100, platforms, &num_platforms);
     if (err < 0)
     {
         perror("Couldn't identify platform.");
         exit(1);
     }
-    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &dev, NULL);
+    printf("%d platforms detected\n", num_platforms); 
+    int pid = 1;
+    printf("Selecting platform id: %d\n", pid);
+    cl_device_id dev;
+    err = clGetDeviceIDs((platforms[pid]), CL_DEVICE_TYPE_GPU, 1, &dev, NULL);
+    printf("Device Retreived");
     if (err == CL_DEVICE_NOT_FOUND)
     {
         printf("Couldn't find GPU!\n");
-        err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &dev, NULL);
+        err = clGetDeviceIDs(platforms[pid], CL_DEVICE_TYPE_CPU, 1, &dev, NULL);
     }
     if (err<0)
     {
