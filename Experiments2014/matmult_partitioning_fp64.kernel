@@ -1,0 +1,55 @@
+                                                        
+                                                       
+#pragma OPENCL EXTENSION cl_khr_fp64: enable
+
+__kernel                                                  
+void matmult_fp64(                                     
+  __global double * C,                                     
+  __global double* A,                                      
+  __global double* B,                                      
+  const int numARows,  
+  const int numBRows,                                     
+  const int numAColumns,                                                                     
+  const int numBColumns,                                  
+  __local double* Al,                                      
+  __local double* Bl)                                      
+{                                                         
+                                                          
+   // Get the work-item’s unique ID                       
+   int Row = get_global_id(1);                            
+   int Col = get_global_id(0);                            
+   int tx = get_local_id(0); int ty = get_local_id(1) ;   
+   int tile_width = get_local_size(0) ;                   
+                                                          
+   double sum = 0.0;                                     
+   int idx = ty * tile_width + tx ;                       
+                                                          
+   // process tiles                                       
+    for( int m = 0; m < (numAColumns-1) / tile_width+1; ++m) 
+     {                                                    
+                                                          
+        // copy tile from global to local memory          
+        if( Row < numARows && m * tile_width + tx < numAColumns) 
+            Al[idx] = A[Row*numAColumns + m * tile_width + tx] ; 
+        else                                              
+            Al[idx] = 0;                                  
+        if( m * tile_width + ty < numBRows && Col < numBColumns) 
+            Bl[idx] = B[(m * tile_width + ty) * numBColumns + Col] ; 
+        else                                              
+            Bl[idx] = 0 ;                                 
+        barrier(CLK_LOCAL_MEM_FENCE) ;                    
+                                                          
+        // inner product                                  
+        for (int k = 0; k < tile_width; ++k)              
+        {                                                 
+          sum += Al[ty * tile_width + k] * Bl[k * tile_width + tx] ;  
+        }                                                 
+        barrier(CLK_LOCAL_MEM_FENCE) ;                    
+                                                          
+     }                                                    
+   // if element is in bounds, copy result to global memory 
+   if(( Row < numARows) && (Col < numBColumns))           
+     {                                                    
+       C[Row * numBColumns + Col] = sum ;                 
+     }                                                    
+} 

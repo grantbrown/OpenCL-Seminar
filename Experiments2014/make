@@ -1,0 +1,1 @@
+gcc -I/usr/include -L/usr/lib matmult2.c -lOpenCL -lm -o matmult.o
