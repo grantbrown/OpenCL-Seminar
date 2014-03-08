@@ -24,7 +24,7 @@ cl_device_id create_device()
         exit(1);
     }
     printf("%d platforms detected\n", num_platforms); 
-    int pid = 1;
+    int pid = 0;
     printf("Selecting platform id: %d\n", pid);
     cl_device_id dev;
     err = clGetDeviceIDs((platforms[pid]), CL_DEVICE_TYPE_GPU, 1, &dev, NULL);
@@ -376,7 +376,7 @@ int main_fp()
 
     // Choose local size appropriately. 
     int ls;
-    ls = sqrt(local_size)/2;
+    ls = sqrt(local_size);
 
     localWorkSize[0] = ls;
     localWorkSize[1] = ls;
@@ -588,7 +588,7 @@ int main_fp64()
 
     // Choose local size appropriately. 
     int ls;
-    ls = sqrt(local_size)/2;
+    ls = sqrt(local_size);
     //ls = 1;
     localWorkSize[0] = ls;
     localWorkSize[1] = ls;
@@ -657,7 +657,7 @@ int main_fp64()
         0, sizeof(double)*(*Bcols)*(*Brows), B, 0, NULL, NULL);
     chk(status, "clCreateBuffer");
 
-    kernel[0] = clCreateKernel(program, "matmult", &status);
+    kernel[0] = clCreateKernel(program, "matmult_fp64", &status);
     chk(status, "clCreateKernel");
 
     // associate the input and output buffers with the kernel 
